@@ -1,90 +1,108 @@
 # Setup
 
-One-time steps. After this the profile maintains itself.
+Everything in this folder is already generated. The steps below push it and put
+the graphics on a schedule.
 
-## 1. Create the repository
+## 1. Push
 
-The repository name must be **exactly your GitHub username**. That is what makes GitHub
-render its README on your profile page.
+Your profile repository already exists at `github.com/diansour-king/diansour-king`
+and has GitHub's default "Hi there" README on it, so this builds on top of that
+commit rather than colliding with it.
 
-```
-https://github.com/new   ->   Repository name: <your-username>
-Public. Do not add a README, .gitignore or licence.
-```
-
-## 2. Push this folder
-
-From this folder, in a terminal:
-
-```bash
+```bat
+cd /d "%USERPROFILE%\Documents\bikash-profile"
+mkdir .github\workflows
+move workflow-stats.yml .github\workflows\stats.yml
 git init -b main
+git remote add origin https://github.com/diansour-king/diansour-king.git
+git fetch origin main
+git reset --soft origin/main
 git add .
-git commit -m "feat: self-generating profile README"
-git remote add origin https://github.com/<your-username>/<your-username>.git
-git push -u origin main
+git commit -m "feat: ascii profile with generated stat graphics"
+git push origin main
 ```
 
-## 3. Let Actions write to the repository
+## 2. Let Actions write to the repository
 
-`Settings -> Actions -> General -> Workflow permissions` ->
-select **Read and write permissions** -> Save.
+`Settings -> Actions -> General -> Workflow permissions` -> **Read and write
+permissions** -> Save.
 
-Without this the workflow renders the README fine and then fails on `git push`.
+Without this the workflow draws the graphics correctly and then fails on
+`git push`, and your profile keeps the empty baseline forever.
 
-## 4. Run it once
+## 3. Run it once
 
-`Actions -> Generate README -> Run workflow`.
+`Actions -> refresh stats -> Run workflow`.
 
-The push in step 2 already triggers it, but running it by hand is the quickest way to
-read the log if something is off. Give it about a minute, then reload your profile page.
+The graphics committed here are an **empty baseline** — zeros everywhere. That is
+deliberate: invented sample numbers on a public profile are a lie that a broken
+workflow never gets round to correcting. The first run replaces them with your
+real contribution data. After that it runs daily at 05:17 UTC (10:47 IST).
 
-## 5. Fill in the parts only you know
+Note the workflow has no `push` trigger, on purpose. It commits SVG files, and a
+push trigger would make it re-run on its own commit forever.
 
-Open `data/profile.json` and set:
+## 4. Add your links
 
-- `links.LinkedIn` — your profile URL
-- `links.Email` — the address you want recruiters to use
-- `links.Resume` — a public link to your CV, if you want one on the page
-- `projects[].repo` — the repo name once each project is public, which turns the
-  project heading into a link
+`README.md` currently links GitHub and email. There is a commented block just
+below them with LinkedIn and LeetCode ready to go — uncomment it and drop your
+URLs in.
 
-Leave `display_name`, `location` and any link as `null` and it is simply left out or
-filled from your GitHub account.
+The project links all point at your profile page, because none of those repos are
+public yet. Point each at its real repository as you publish them.
 
-Commit and push. The workflow reruns on any change under `data/`, `templates/` or
-`scripts/`.
-
-## How it fits together
+## What is here
 
 ```
-data/profile.json          the only hand-written content
-templates/README.tmpl.md   the layout, with {{PLACEHOLDER}} slots
-scripts/generate_readme.py fetches live data, fills the slots, writes README.md
-.github/workflows/         runs daily at 00:30 UTC, on push, and on demand
+ascii.svg                    the wordmark at the top, self-typing
+stats.svg streak.svg         drawn daily from the GitHub GraphQL API
+langs.svg year.svg
+hd-*.svg                     section headings, so they use the page's own typeface
+icon-*.svg                   link icons, light and dark
+scripts/generate_stats.py    the daily generator — stdlib only, no dependencies
+scripts/make_wordmark.py     one-off: rebuilds ascii.svg from text
+scripts/make_portrait.py     one-off: rebuilds ascii.svg from a photograph
+scripts/embed_portrait_font.py  inlines JetBrains Mono into ascii.svg
 ```
 
-`README.md` is build output. Editing it directly is pointless — the next run overwrites
-it. Edit the template or `profile.json`.
+## Rebuilding the top graphic
 
-## Running it on your own machine
+To change the wordmark text:
 
 ```bash
-GITHUB_TOKEN=$(gh auth token) GITHUB_REPOSITORY_OWNER=<your-username> python scripts/generate_readme.py
+python3 scripts/make_wordmark.py "BIKASH" "KUMAR SHAH" --tagline "cse @ nit rourkela  -  batch of 2027"
+python3 scripts/embed_portrait_font.py
 ```
 
-Standard library only, so there is nothing to install.
+To use a photograph of yourself instead — this is the version that makes people
+stop scrolling, and it is what the original design was built around:
 
-## Things worth knowing
+```bash
+pip install pillow numpy opencv-python-headless rembg onnxruntime
+python3 scripts/make_portrait.py photo.png --crop 400,110,910,790
+python3 scripts/embed_portrait_font.py
+```
 
-- **The daily run usually commits nothing.** The generator ignores its own timestamp
-  when deciding whether anything changed, so a day with no new public activity produces
-  no commit. That keeps the history free of bot noise, at the cost of a `Last generated`
-  date that can be a few days stale.
-- **The streak card is third-party.** `github-readme-streak-stats` is hosted by someone
-  else and goes down occasionally. If you would rather not depend on it, remove that card
-  from `render_stats_cards` in the generator.
-- **Private work is invisible.** The event feed is public events only. Private repos
-  count toward the stats card totals but never appear in `Lately`.
-- **Language percentages are bytes, not effort.** A generated lockfile can outweigh a
-  month of careful work. Add noisy languages to `options.exclude_languages`, or noisy
-  repos to `options.exclude_repos`.
+Read the docstring at the top of `make_portrait.py` first. The photo decides
+everything: side light at roughly 45 degrees, a tight crop from chin to just
+above the hair, real resolution. Flat frontal light renders your face as a hole.
+
+The second command is not optional in either case. The character grid assumes an
+advance width of exactly 0.600 em, and without the inlined font a viewer whose
+default monospace is narrower sees the whole thing squeezed.
+
+## Why the fonts are inlined as base64
+
+These SVGs are loaded through `<img>` tags, and browsers refuse to fetch
+subresources for an image document — an external font URL simply never loads.
+Same reason the animation is SMIL rather than JavaScript: GitHub strips `<script>`
+from rendered READMEs.
+
+## Credit
+
+The layout, the generator and the drawing code are adapted from
+[vivekstackk/vivekstackk](https://github.com/vivekstackk), which is where this
+design comes from. That repository carries no licence, which strictly means no
+permission is granted to reuse it. Adding a line of credit in the README, or
+asking the author, is the decent thing to do — see the note in this project's
+setup conversation.
