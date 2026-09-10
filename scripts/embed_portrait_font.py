@@ -34,7 +34,8 @@ def pick_font(svg):
     would silently fall back to the viewer's own monospace.
     """
     ramp = set(" .`:-=+*cs#%@")
-    body = re.sub(r"<[^>]*>", "", svg)
+    body = re.sub(r"<style>.*?</style>", "", svg, flags=re.S)
+    body = re.sub(r"<[^>]*>", "", body)
     if set(body) - ramp - set("\n\t"):
         return os.path.join(FONTS, "jbmono-400.woff2")
     return os.path.join(FONTS, "jbmono-ramp.woff2")
